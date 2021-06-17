@@ -28,12 +28,14 @@ type user struct {
 }
 
 func main() {
+	// Create command line argument parser
 	email := flag.String("email", "", "Mattermost login email")
 	password := flag.String("pass", "", "Mattermost login password")
 	file := flag.String("file", "", "File contain mattermost login email and password. Support json and yaml type")
 	flag.Usage = usage
 	flag.Parse()
 
+	// Check post link is exist
 	if flag.NArg() != 1 {
 		println("Missing post link")
 		flag.Usage()
@@ -41,11 +43,14 @@ func main() {
 	}
 	post := flag.Args()[0]
 
+	// Check cert file or email+pass is exist
 	if *file == "" && (*email == "" || *password == "") {
 		println("Missing certificate file or email/pass parametter")
 		flag.Usage()
 		os.Exit(1)
 	}
+
+	// Parse cert file if listed
 	if *file != "" {
 		var u user
 		if filepath.Ext(*file) == ".json" {
@@ -62,6 +67,7 @@ func main() {
 		password = &u.Pass
 	}
 
+	// Parse mattermost server url and post id from post link
 	u, err := url.Parse(post)
 	if err != nil {
 		println("Wrong post link")
@@ -74,20 +80,23 @@ func main() {
 		println("Wrong post link")
 		os.Exit(1)
 	}
-
 	postID := params[len(params)-1]
 
+	// Connect and login
 	client = model.NewAPIv4Client(mattermost_server)
 	pingServer()
 	userID := login(*email, *password)
 
+	// get list of supported emoji and add reaction
 	getAllEmoji()
 	reactAll(userID, postID)
 
+	// Wait all go routine
 	wg.Wait()
 	println("Done")
 }
 
+// Custom usage function
 func usage() {
 	println("Usage: ", os.Args[0], "[options] post_link")
 	println("post_link: Link of post you want to spam reaction =))")
@@ -96,6 +105,7 @@ func usage() {
 	println("Login using certificate file or email+pass")
 }
 
+// Parse json file
 func parseJson(file string) (u user) {
 	jsonFile, err := os.Open(file)
 	if err != nil {
@@ -120,6 +130,7 @@ func parseJson(file string) (u user) {
 	return
 }
 
+// Parse yaml file
 func parseYaml(file string) (u user) {
 	yamlFile, err := os.Open(file)
 	if err != nil {
@@ -144,6 +155,7 @@ func parseYaml(file string) (u user) {
 	return
 }
 
+// Check server is running
 func pingServer() {
 	if props, resp := client.GetOldClientConfig(""); resp.Error != nil {
 		println("There was a problem pinging the Mattermost server.")
@@ -153,6 +165,7 @@ func pingServer() {
 	}
 }
 
+// Login to server with email+pass
 func login(email string, pass string) string {
 	user, resp := client.Login(email, pass)
 	if resp.Error != nil {
@@ -162,10 +175,12 @@ func login(email string, pass string) string {
 	return user.Id
 }
 
+// Get all emoji
 func getAllEmoji() {
 	support_emojis = append(support_emojis, getCustomEmoji()...)
 }
 
+// Get list of custom emoji in the server
 func getCustomEmoji() (emojis []string) {
 	emoji, resp := client.GetEmojiList(0, 60)
 	if resp.Error != nil {
@@ -178,6 +193,7 @@ func getCustomEmoji() (emojis []string) {
 	return
 }
 
+// add all emoji to the post
 func reactAll(userID string, postID string) {
 	for _, emoji := range support_emojis {
 		wg.Add(1)
@@ -185,6 +201,7 @@ func reactAll(userID string, postID string) {
 	}
 }
 
+// add one emoji to the post
 func react(userID string, postID string, emoji string) error {
 	defer wg.Done()
 	react := &model.Reaction{
