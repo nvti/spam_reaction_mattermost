@@ -4,12 +4,15 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/mattermost/mattermost-server/v5/model"
 	"gopkg.in/yaml.v2"
@@ -32,6 +35,8 @@ func main() {
 	email := flag.String("email", "", "Mattermost login email")
 	password := flag.String("pass", "", "Mattermost login password")
 	file := flag.String("file", "", "File contain mattermost login email and password. Support json and yaml type")
+	var num int
+	flag.IntVar(&num, "n", 20, "Number of reaction you want to add. Set 0 to use max supported emoji")
 	flag.Usage = usage
 	flag.Parse()
 
@@ -82,14 +87,33 @@ func main() {
 	}
 	postID := params[len(params)-1]
 
+	// Check number of emoji
+	if num == 0 {
+		num = len(support_emojis)
+	}
+	// If number of emoji is too big, display a comfirmation
+	if num > 50 {
+		print("WARNING: ", num, " is a large number of emoji, are you sure? y/[n]) ")
+		var comfirm string
+		fmt.Scanln(&comfirm)
+		if comfirm != "y" {
+			os.Exit(0)
+		}
+	}
+
 	// Connect and login
 	client = model.NewAPIv4Client(mattermost_server)
 	pingServer()
 	userID := login(*email, *password)
 
-	// get list of supported emoji and add reaction
-	getAllEmoji()
-	reactAll(userID, postID)
+	// Add reaction
+	if num == len(support_emojis) {
+		// get list of supported emoji and add reaction
+		getAllEmoji()
+		reactAll(userID, postID)
+	} else {
+		react(userID, postID, num)
+	}
 
 	// Wait all go routine
 	wg.Wait()
@@ -157,11 +181,9 @@ func parseYaml(file string) (u user) {
 
 // Check server is running
 func pingServer() {
-	if props, resp := client.GetOldClientConfig(""); resp.Error != nil {
+	if _, resp := client.GetOldClientConfig(""); resp.Error != nil {
 		println("There was a problem pinging the Mattermost server.")
 		os.Exit(1)
-	} else {
-		println("Server detected and is running version " + props["Version"])
 	}
 }
 
@@ -197,12 +219,25 @@ func getCustomEmoji() (emojis []string) {
 func reactAll(userID string, postID string) {
 	for _, emoji := range support_emojis {
 		wg.Add(1)
-		go react(userID, postID, emoji)
+		go reactOne(userID, postID, emoji)
+	}
+}
+
+// add a number of emoji to the post
+func react(userID string, postID string, num int) {
+	// initialize global pseudo random generator
+	rand.Seed(time.Now().Unix())
+
+	// Get random num emoji from support_emojis list
+	res := rand.Perm(len(support_emojis))
+	for _, i := range res[:num] {
+		wg.Add(1)
+		go reactOne(userID, postID, support_emojis[i])
 	}
 }
 
 // add one emoji to the post
-func react(userID string, postID string, emoji string) error {
+func reactOne(userID string, postID string, emoji string) error {
 	defer wg.Done()
 	react := &model.Reaction{
 		UserId:    userID,
