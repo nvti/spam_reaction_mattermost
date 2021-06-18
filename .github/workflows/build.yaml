@@ -1,0 +1,14 @@
+jobs:
+  build:
+    strategy:
+      matrix:
+        host: [ 'windows-latest', 'ubuntu-latest' ]
+    runs-on: ${{ matrix.host }}
+    name: Build on ${{ matrix.host }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '^1.16'
+      - run: go build ./...
