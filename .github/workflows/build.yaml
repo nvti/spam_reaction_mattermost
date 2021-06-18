@@ -15,7 +15,7 @@ jobs:
       - name: zip linux artifact
         if: startsWith(github.ref, 'refs/tags/')
         run: zip linux.zip react
-        
+
   build-windows:
     runs-on: windows-latest
     name: Build for windows
@@ -29,8 +29,8 @@ jobs:
       - run: go vet ./...
       - name: zip windows artifact
         if: startsWith(github.ref, 'refs/tags/')
-        run: powershell Compress-Archive react windows.zip 
-        
+        run: powershell Compress-Archive react windows.zip
+
   build-macos:
     runs-on: macos-latest
     name: Build for macos
@@ -45,16 +45,17 @@ jobs:
       - name: zip macos artifact
         if: startsWith(github.ref, 'refs/tags/')
         run: zip macos.zip react
-        
+
   upload-release:
     runs-on: ubuntu-latest
     needs: [build-macos, build-linux, build-windows]
+    if: startsWith(github.ref, 'refs/tags/')
     steps:
       - uses: actions/checkout@v2
       - name: download artifacts
         uses: actions/download-artifact@v2
         with:
-          name: uploads 
+          name: uploads
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
