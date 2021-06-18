@@ -6,7 +6,7 @@ This is a funny project for add large of reaction on a post in mattermost :laugh
 
 ### Pre-build binary
 
-You can directly download binary from [releases page](/releases/latest). Currently, this tool support for Linux, Windows and MacOS. Download zip file, extract and make fun :innocent:
+You can directly download binary from [releases page](https://github.com/tiena2cva/spam_reaction_mattermost/releases/latest). Currently, this tool support for Linux, Windows and MacOS. Download zip file, extract and make fun :innocent:
 
 ### Build from source
 
